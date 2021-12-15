@@ -5,12 +5,23 @@ metadata:
   name: nginx-proxy-cache
 objects:
 - apiVersion: apps/v1
-  kind: Deployment
+  kind: StatefulSet
   metadata:
     labels:
       run: nginx-proxy-cache
     name: nginx-proxy-cache
   spec:
+    podManagementPolicy: Parallel
+    volumeClaimTemplates:
+    - metadata:
+        name: proxy-cache-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        persistentVolumeReclaimPolicy: Delete
+        storageClassName: gp2
+        resources:
+          requests:
+            storage: "${CACHE_VOLUME_SIZE}"
     replicas: ${{REPLICAS}}
     selector:
       matchLabels:
@@ -34,8 +45,9 @@ objects:
               weight: 100
         serviceAccountName: nginx
         containers:
-        - image: ${IMAGE_NAME}:${IMAGE_TAG}
+        - image: "${IMAGE_NAME}:${IMAGE_TAG}"
           name: nginx-proxy-cache
+          imagePullPolicy: "${IMAGE_PULL_POLICY}"
           ports:
           - containerPort: 8080
             name: http
@@ -52,11 +64,15 @@ objects:
             value: "${PROXY_DESTINATION}"
           - name: PROXY_CACHE_VALID
             value: "${PROXY_CACHE_VALID}"
+          - name: CACHE_MAX_SIZE
+            value: "${CACHE_MAX_SIZE}"
           volumeMounts:
           - name: nginx-cache
             mountPath: /var/cache/nginx
           - name: nginx-run
             mountPath: /var/run
+          - name: proxy-cache-data
+            mountPath: /data/nginx/cache
         volumes:
         - name: nginx-cache
           emptyDir: {}
@@ -93,6 +109,12 @@ parameters:
 - name: MEMORY_LIMIT
   value: "500Mi"
 - name: PROXY_DESTINATION
-  value: http://localhost:3000
+  required: true
 - name: PROXY_CACHE_VALID
   value: "10m"
+- name: CACHE_VOLUME_SIZE
+  value: "2Gi"
+- name: CACHE_MAX_SIZE
+  value: "1g"
+- name: IMAGE_PULL_POLICY
+  value: IfNotPresent
