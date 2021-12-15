@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_NAME="quay.io/app-sre/nginx-redirector"
+IMAGE_NAME="quay.io/app-sre/nginx-proxy-cache"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 
 docker build -t "${IMAGE_NAME}:latest" .
