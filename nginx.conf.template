@@ -19,10 +19,13 @@ http {
     tcp_nodelay         on;
     keepalive_timeout   5;
 
+    resolver NAMESERVER valid=30s;
+
     include             /etc/nginx/mime.types;
     default_type        application/octet-stream;
 
     server {
+        listen 8080;
         location / {
             proxy_pass             PROXY_DESTINATION;
             proxy_set_header       Host $host;
@@ -34,4 +37,3 @@ http {
         }
     }
 }
-
