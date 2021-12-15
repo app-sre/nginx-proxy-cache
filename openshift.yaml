@@ -1,0 +1,98 @@
+---
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: nginx-proxy-cache
+objects:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      run: nginx-proxy-cache
+    name: nginx-proxy-cache
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      matchLabels:
+        run: nginx-proxy-cache
+    template:
+      metadata:
+        labels:
+          run: nginx-proxy-cache
+      spec:
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: run
+                    operator: In
+                    values:
+                    - nginx-proxy-cache
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+        serviceAccountName: nginx
+        containers:
+        - image: ${IMAGE_NAME}:${IMAGE_TAG}
+          name: nginx-proxy-cache
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          resources:
+            requests:
+              cpu: "${CPU_REQUEST}"
+              memory: "${MEMORY_REQUEST}"
+            limits:
+              cpu: "${CPU_LIMIT}"
+              memory: "${MEMORY_LIMIT}"
+          env:
+          - name: PROXY_DESTINATION
+            value: "${PROXY_DESTINATION}"
+          - name: PROXY_CACHE_VALID
+            value: "${PROXY_CACHE_VALID}"
+          volumeMounts:
+          - name: nginx-cache
+            mountPath: /var/cache/nginx
+          - name: nginx-run
+            mountPath: /var/run
+        volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: nginx-proxy-cache
+  spec:
+    ports:
+    - port: 8080
+      protocol: TCP
+      targetPort: http
+    selector:
+      run: nginx-proxy-cache
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: nginx
+parameters:
+- name: IMAGE_TAG
+  value: "latest"
+- name: IMAGE_NAME
+  value: "quay.io/app-sre/nginx-proxy-cache"
+- name: REPLICAS
+  value: "1"
+- name: CPU_REQUEST
+  value: "500m"
+- name: CPU_LIMIT
+  value: "500m"
+- name: MEMORY_REQUEST
+  value: "500Mi"
+- name: MEMORY_LIMIT
+  value: "500Mi"
+- name: PROXY_DESTINATION
+  value: http://localhost:3000
+- name: PROXY_CACHE_VALID
+  value: "10m"
